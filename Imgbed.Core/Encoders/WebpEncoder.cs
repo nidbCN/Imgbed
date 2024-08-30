@@ -1,12 +1,15 @@
 ﻿using FFmpeg.AutoGen;
+using Imgbed.Core.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace Imgbed.Core.Encoders;
 internal class WebpEncoder : IEncoder, IDisposable
 {
     private readonly ILogger<WebpEncoder> _logger;
+
     private readonly unsafe AVCodecContext* _encoderCtx;
     private readonly unsafe AVFrame* _frame;
+    private readonly unsafe AVPacket* _packet;
 
     public unsafe WebpEncoder(ILogger<WebpEncoder> logger)
     {
@@ -23,14 +26,19 @@ internal class WebpEncoder : IEncoder, IDisposable
         ffmpeg.avcodec_open2(_encoderCtx, codec, null);
 
         _frame = ffmpeg.av_frame_alloc();
+        _packet = ffmpeg.av_packet_alloc();
     }
 
-    public unsafe void EncodeUnsafe(AVFrame* frame, AVPacket* packet, int width, int height)
+    private unsafe void UnRef()
+    {
+        ffmpeg.av_frame_unref(_frame);
+        ffmpeg.av_packet_unref(_packet);
+    }
+
+    public unsafe Stream EncodeUnsafe(AVFrame* frame, int width, int height)
     {
         if (frame is null)
             throw new ArgumentNullException(nameof(frame));
-        if (packet is null)
-            throw new ArgumentNullException(nameof(packet));
 
         var framePixelFormat = (AVPixelFormat)frame->format;
 
@@ -43,25 +51,42 @@ internal class WebpEncoder : IEncoder, IDisposable
         _frame->height = height;
         _frame->format = (int)_encoderCtx->pix_fmt;
 
-        ffmpeg.av_frame_copy_props(_frame, frame);
-        ffmpeg.sws_scale_frame(scaleCtx, _frame, frame);
+        ffmpeg.av_frame_copy_props(_frame, frame)
+            .ThrowExceptionIfError(_ => UnRef());
 
-        var sendRet = ffmpeg.avcodec_send_frame(_encoderCtx, _frame);
-        ffmpeg.av_frame_unref(_frame);
-        if (sendRet != 0)
-            return false;
+        ffmpeg.sws_scale_frame(scaleCtx, _frame, frame)
+            .ThrowExceptionIfError(_ => UnRef());
 
-        var encodeResult = ffmpeg.avcodec_receive_packet(_encoderCtx, packet);
-        if (encodeResult != 0)
-            return false;
+        ffmpeg.avcodec_send_frame(_encoderCtx, _frame)
+            .ThrowExceptionIfError(_ => UnRef());
 
-        return true;
+        var stream = new MemoryStream();
+
+        var ret = 0;
+        while (ret == 0)
+        {
+            ret = ffmpeg.avcodec_receive_packet(_encoderCtx, _packet);
+
+            using var bufStream = new UnmanagedMemoryStream(_packet->data, _packet->size);
+            bufStream.CopyTo(stream);
+        }
+
+        if (ret != ffmpeg.AVERROR(ffmpeg.EAGAIN) && ret != ffmpeg.AVERROR_EOF)
+        {
+            ret.ThrowExceptionIfError(_ => UnRef());
+        }
+
+        UnRef();
+
+        return stream;
     }
 
     public unsafe void Dispose()
     {
         var frame = _frame;
         ffmpeg.av_frame_free(&frame);
+        var packet = _packet;
+        ffmpeg.av_packet_free(&packet);
 
         var encoderCtx = _encoderCtx;
         ffmpeg.avcodec_free_context(&encoderCtx);

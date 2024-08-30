@@ -3,5 +3,5 @@
 namespace Imgbed.Core.Encoders;
 internal interface IEncoder
 {
-    public unsafe bool TryEncodeUnsafe(AVFrame* frame, AVPacket* packet, int width, int height);
+    public unsafe Stream EncodeUnsafe(AVFrame* frame, int width, int height);
 }
