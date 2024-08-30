@@ -1,14 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using FFmpeg.AutoGen;
 
 namespace Imgbed.Core.Encoders;
 internal interface IEncoder
 {
-    public void Decode()
-    {
-
-    }
+    public unsafe bool TryEncodeUnsafe(AVFrame* frame, AVPacket* packet, int width, int height);
 }
