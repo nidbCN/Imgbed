@@ -1,0 +1,6 @@
+@Imgbed.WebApi_HostAddress = http://localhost:5078
+
+GET {{Imgbed.WebApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
