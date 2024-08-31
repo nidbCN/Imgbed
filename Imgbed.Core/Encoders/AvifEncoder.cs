@@ -3,7 +3,11 @@
 namespace Imgbed.Core.Encoders;
 internal class AvifEncoder : IEncoder, IDisposable
 {
-    public unsafe Stream EncodeUnsafe(AVFrame* frame, int width, int height) => throw new NotImplementedException();
+    public unsafe void EncodeAndSaveUnsafe(AVFrame* frame, int width, int height, string path)
+    {
+        throw new NotImplementedException();
+    }
+
     public void Dispose()
     {
         throw new NotImplementedException();

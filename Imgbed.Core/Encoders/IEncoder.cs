@@ -3,5 +3,5 @@
 namespace Imgbed.Core.Encoders;
 public interface IEncoder
 {
-    public unsafe Stream EncodeUnsafe(AVFrame* frame, int width, int height);
+    public unsafe void EncodeAndSaveUnsafe(AVFrame* frame, int width, int height, string path);
 }

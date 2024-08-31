@@ -8,14 +8,14 @@ public class EncoderContext
 
     public EncoderContext() { }
 
-    public EncoderContext(IEncoder encoder) 
+    public EncoderContext(IEncoder encoder)
         => Encoder = encoder;
 
-    public unsafe Task<Stream> Encode(AVFrame* frame, int width, int height)
+    public unsafe Task EncodeAndSave(AVFrame* frame, int width, int height)
     {
         if (Encoder is null)
             throw new Exception(nameof(Encoder));
 
-        return Task.Run(() => Encoder.EncodeUnsafe(frame, width, height));
+        return Task.Run(() => Encoder.EncodeAndSaveUnsafe(frame, width, height, "x.jpg"));
     }
 }
