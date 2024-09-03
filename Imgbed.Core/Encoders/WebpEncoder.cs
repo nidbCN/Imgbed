@@ -3,7 +3,7 @@ using Imgbed.Core.Extensions.FFMpeg;
 using Microsoft.Extensions.Logging;
 
 namespace Imgbed.Core.Encoders;
-internal class WebpEncoder : IEncoder, IDisposable
+internal class WebpEncoder : IEncoder
 {
     private readonly ILogger<WebpEncoder> _logger;
 
@@ -105,6 +105,11 @@ internal class WebpEncoder : IEncoder, IDisposable
         ffmpeg.av_write_frame(_formatCtx, _packet);
         ffmpeg.av_write_trailer(_formatCtx);
         ffmpeg.av_packet_unref(_packet);
+    }
+
+    public void Reset()
+    {
+        throw new NotImplementedException();
     }
 
     public unsafe void Dispose()

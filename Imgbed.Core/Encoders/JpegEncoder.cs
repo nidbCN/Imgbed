@@ -2,7 +2,7 @@
 using Imgbed.Core.Extensions.FFMpeg;
 
 namespace Imgbed.Core.Encoders;
-internal class JpegEncoder : IEncoder, IDisposable
+internal class JpegEncoder : IEncoder
 {
     private readonly unsafe AVCodecContext* _encoderCtx;
     private readonly unsafe AVFrame* _frame;
@@ -61,6 +61,11 @@ internal class JpegEncoder : IEncoder, IDisposable
         }
 
         UnRef();
+    }
+
+    public void Reset()
+    {
+        throw new NotImplementedException();
     }
 
     public void Dispose()

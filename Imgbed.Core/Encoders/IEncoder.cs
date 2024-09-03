@@ -2,7 +2,7 @@
 
 namespace Imgbed.Core.Encoders;
 
-public interface IEncoder
+public interface IEncoder : IDisposable
 {
     public unsafe void EncodeAndSaveUnsafe(AVFrame* frame, int width, int height, string path);
 
