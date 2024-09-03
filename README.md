@@ -21,6 +21,7 @@
 * 编写前端
 * 前后端对接
 * IIC色彩空间转换（全部转到 sRGB 并嵌入配置文件防止有呆逼程序爆炸）
+* patch ffmpeg 支持 heic（不确定）
 
 ## Contribution
 
