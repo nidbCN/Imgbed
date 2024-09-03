@@ -1,9 +1,9 @@
 ﻿using System.Collections.Concurrent;
 using System.Reflection;
-using Imgbed.Core.Encoders;
 
-namespace Imgbed.Core.EncoderPool;
-internal class EncoderPool : IDisposable
+namespace Imgbed.Core.Encoders.Pool;
+
+public class EncoderPool : IDisposable
 {
     public EncoderPool()
     {
@@ -52,7 +52,13 @@ internal class EncoderPool : IDisposable
             MaxTotalCount = (uint)(MaxPerTypeCount * encoderTypes.Length);
     }
 
-    public async Task<T> GetEncoderAsync<T>(CancellationToken cancellationToken = default) where T : IEncoder, new()
+    /// <summary>
+    /// 从池中获取编码器
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    public async Task<T> GetAsync<T>(CancellationToken cancellationToken = default) where T : IEncoder, new()
     {
         var encoderType = typeof(T);
 
@@ -79,7 +85,7 @@ internal class EncoderPool : IDisposable
     /// </summary>
     /// <typeparam name="T">编码器类型</typeparam>
     /// <param name="encoder">编码器实例</param>
-    public void ReturnEncoder<T>(T encoder) where T : IEncoder
+    public void Return<T>(T encoder) where T : IEncoder
     {
         var encoderType = typeof(T);
 
