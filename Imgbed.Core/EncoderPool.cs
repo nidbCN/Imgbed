@@ -1,55 +1,65 @@
 ﻿using System.Collections.Concurrent;
 using System.Reflection;
+using Imgbed.Core.Encoders;
+using Imgbed.Core.Options;
 
-namespace Imgbed.Core.Encoders.Pool;
+namespace Imgbed.Core;
 
-public class EncoderPool : IDisposable
+public sealed class EncoderPool : IDisposable
 {
     public EncoderPool()
     {
         _totalSemaphore = new(0, (int)MaxTotalCount);
     }
 
-    public EncoderPool(uint maxPreTypeCount, uint maxTotalCount) : this()
+    public EncoderPool(uint maxPreEncoderCount, uint maxTotalCount)
+        : this()
     {
-        MaxPerTypeCount = maxPreTypeCount;
+        MaxPerEncoderCount = maxPreEncoderCount;
         MaxTotalCount = maxTotalCount;
     }
 
-    public EncoderPool(string namespaceName, uint maxPreTypeCount, uint maxTotalCount) : this(maxPreTypeCount, maxTotalCount)
+    public EncoderPool(ICollection<string> namespaceList, uint maxPreEncoderCount, uint maxTotalCount)
+        : this(maxPreEncoderCount, maxTotalCount)
     {
-        LoadEncodersFromNamespace(namespaceName, true);
+        LoadEncodersFromNamespace(namespaceList, true);
     }
+
+    public EncoderPool(EncoderPoolOption option)
+        : this(option.NamespaceList, option.MaxPreEncoderCount, option.MaxTotalCount)
+    { }
 
     private readonly ConcurrentDictionary<Type, ConcurrentBag<IEncoder>> _freeEncoders = new();
     private readonly ConcurrentDictionary<Type, SemaphoreSlim> _semaphores = new();
 
     private readonly SemaphoreSlim _totalSemaphore;
 
-    public uint MaxPerTypeCount { get; } = 4;
+    public uint MaxPerEncoderCount { get; } = 4;
     public uint MaxTotalCount { get; private set; } = 16;
 
     public uint CurrentFreeEncoder<T>() where T : IEncoder
         => (uint)_freeEncoders[typeof(T)].Count;
 
-    public void LoadEncodersFromNamespace(string namespaceName, bool updateCount = true)
+    public void LoadEncodersFromNamespace(ICollection<string> namespaceList, bool updateCount = true)
     {
         var encoderTypes = Assembly.GetExecutingAssembly()
             .GetTypes()
-            .Where(t =>
-                t.Namespace == namespaceName
-                && typeof(IEncoder).IsAssignableFrom(t)
-                && t is { IsInterface: false, IsAbstract: false })
+            .Where(t => t.Namespace is not null
+                        && namespaceList.Contains(t.Namespace))
+            .Where(t => typeof(IEncoder).IsAssignableFrom(t)
+                        && t is { IsInterface: false, IsAbstract: false })
             .ToArray();
 
         foreach (var type in encoderTypes)
         {
             _freeEncoders.TryAdd(type, []);
-            _semaphores.TryAdd(type, new(0, (int)MaxPerTypeCount));
+            _semaphores.TryAdd(type, new(0, (int)MaxPerEncoderCount));
         }
 
         if (updateCount)
-            MaxTotalCount = (uint)(MaxPerTypeCount * encoderTypes.Length);
+        {
+            MaxTotalCount = (uint)(MaxPerEncoderCount * encoderTypes.Length);
+        }
     }
 
     /// <summary>
@@ -100,6 +110,6 @@ public class EncoderPool : IDisposable
 
     public void Dispose()
     {
-        throw new NotImplementedException();
+        
     }
 }

@@ -1,7 +1,6 @@
 ﻿using FFmpeg.AutoGen;
 using Imgbed.Core.Decoders;
 using Imgbed.Core.Encoders;
-using Imgbed.Core.Encoders.Pool;
 
 namespace Imgbed.Core.Services;
 

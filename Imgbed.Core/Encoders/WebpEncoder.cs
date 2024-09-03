@@ -1,5 +1,5 @@
 ﻿using FFmpeg.AutoGen;
-using Imgbed.Core.Extensions;
+using Imgbed.Core.Extensions.FFMpeg;
 using Microsoft.Extensions.Logging;
 
 namespace Imgbed.Core.Encoders;

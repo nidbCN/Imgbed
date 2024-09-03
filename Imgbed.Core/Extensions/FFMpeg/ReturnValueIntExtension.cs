@@ -1,9 +1,9 @@
 ﻿using System.Runtime.InteropServices;
 using FFmpeg.AutoGen;
 
-namespace Imgbed.Core.Extensions;
+namespace Imgbed.Core.Extensions.FFMpeg;
 
-public static class FFMpegExtension
+public static class ReturnValueIntExtension
 {
     public static unsafe string? ErrorToString(int error)
     {
@@ -15,7 +15,7 @@ public static class FFMpegExtension
 
         var buffer = stackalloc byte[bufferSize];
         ffmpeg.av_strerror(error, buffer, bufferSize);
-        var message = Marshal.PtrToStringAnsi((IntPtr)buffer);
+        var message = Marshal.PtrToStringAnsi((nint)buffer);
         return message;
     }
 

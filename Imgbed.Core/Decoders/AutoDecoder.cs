@@ -1,5 +1,5 @@
 ﻿using FFmpeg.AutoGen;
-using Imgbed.Core.Extensions;
+using Imgbed.Core.Extensions.FFMpeg;
 
 namespace Imgbed.Core.Decoders;
 public class AutoDecoder : IDisposable
@@ -98,7 +98,6 @@ public class AutoDecoder : IDisposable
         && ret != ffmpeg.AVERROR(ffmpeg.EAGAIN))
         {
             ret.ThrowExceptionIfError();
-
         }
 
         return _frame;

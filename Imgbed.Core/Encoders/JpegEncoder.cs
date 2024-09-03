@@ -1,5 +1,5 @@
 ﻿using FFmpeg.AutoGen;
-using Imgbed.Core.Extensions;
+using Imgbed.Core.Extensions.FFMpeg;
 
 namespace Imgbed.Core.Encoders;
 internal class JpegEncoder : IEncoder, IDisposable
