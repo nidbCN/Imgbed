@@ -7,6 +7,7 @@ namespace Imgbed.Core;
 
 public sealed class EncoderPool : IDisposable
 {
+    #region 构造函数
     public EncoderPool()
     {
         _totalSemaphore = new(0, (int)MaxTotalCount);
@@ -28,19 +29,26 @@ public sealed class EncoderPool : IDisposable
     public EncoderPool(EncoderPoolOption option)
         : this(option.NamespaceList, option.MaxPreEncoderCount, option.MaxTotalCount)
     { }
+    #endregion
 
-    private readonly ConcurrentDictionary<Type, ConcurrentBag<IEncoder>> _freeEncoders = new();
+    #region 字段
+    private readonly ConcurrentDictionary<Type, ConcurrentBag<IEncoder>> _freeEncodersPool = new();
+    private readonly ConcurrentDictionary<Type, ConcurrentDictionary<IEncoder, byte>> _inUseEncodersPool = new();
     private readonly ConcurrentDictionary<Type, SemaphoreSlim> _semaphores = new();
 
     private readonly SemaphoreSlim _totalSemaphore;
+    #endregion
 
+    #region 属性
     public uint MaxPerEncoderCount { get; } = 4;
     public uint MaxTotalCount { get; private set; } = 16;
 
     public uint CurrentFreeEncoder<T>() where T : IEncoder
-        => (uint)_freeEncoders[typeof(T)].Count;
+        => (uint)_freeEncodersPool[typeof(T)].Count;
+    #endregion
 
-    public void LoadEncodersFromNamespace(ICollection<string> namespaceList, bool updateCount = true)
+    #region 私有方法
+    private void LoadEncodersFromNamespace(ICollection<string> namespaceList, bool updateCount = true)
     {
         var encoderTypes = Assembly.GetExecutingAssembly()
             .GetTypes()
@@ -52,7 +60,8 @@ public sealed class EncoderPool : IDisposable
 
         foreach (var type in encoderTypes)
         {
-            _freeEncoders.TryAdd(type, []);
+            _freeEncodersPool.TryAdd(type, []);
+            _inUseEncodersPool.TryAdd(type, []);
             _semaphores.TryAdd(type, new(0, (int)MaxPerEncoderCount));
         }
 
@@ -61,6 +70,9 @@ public sealed class EncoderPool : IDisposable
             MaxTotalCount = (uint)(MaxPerEncoderCount * encoderTypes.Length);
         }
     }
+    #endregion
+
+    #region 公开方法
 
     /// <summary>
     /// 从池中获取编码器
@@ -80,14 +92,14 @@ public sealed class EncoderPool : IDisposable
             .WaitAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        if (_freeEncoders[encoderType].TryTake(out var encoder))
-        {
-            // 获取解码器实例
-            return (T)encoder;
-        }
+        // 获取解码器实例
+        var returnEncoder = _freeEncodersPool[encoderType].TryTake(out var encoder)
+            ? (T)encoder
+            : new();
 
-        // 新建实例
-        return new();
+        _inUseEncodersPool[encoderType].TryAdd(returnEncoder, 0x00);
+
+        return returnEncoder;
     }
 
     /// <summary>
@@ -99,8 +111,15 @@ public sealed class EncoderPool : IDisposable
     {
         var encoderType = typeof(T);
 
+
+
+        if (!_inUseEncodersPool[encoderType].TryRemove(encoder, out _))
+        {
+            throw new NotSupportedException("What are you fucking doing return a non-pool encoder.");
+        }
+
         // 将编码器回到池中并释放信号量
-        _freeEncoders[encoderType].Add(encoder);
+        _freeEncodersPool[encoderType].Add(encoder);
 
         if (_semaphores.TryGetValue(encoderType, out var semaphore))
         {
@@ -110,6 +129,25 @@ public sealed class EncoderPool : IDisposable
 
     public void Dispose()
     {
-        
+        foreach (var type in _freeEncodersPool.Keys)
+        {
+            var inUseEncoder = _inUseEncodersPool[type];
+            var freeEncoder = _freeEncodersPool[type];
+            var semaphore = _semaphores[type];
+
+            // 锁住全部编码器的信号数
+            var semaphoreCount = inUseEncoder.Count + freeEncoder.Count;
+
+            semaphore.Wait(semaphoreCount);
+
+            // 有信号时说明编码器已经全部退还
+            foreach (var encoder in _freeEncodersPool[type])
+            {
+                encoder.Dispose();
+            }
+
+            semaphore.Release(semaphoreCount);
+        }
     }
+    #endregion
 }
