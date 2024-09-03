@@ -1,6 +1,7 @@
 ﻿using FFmpeg.AutoGen;
+using Imgbed.Core.Encoders;
 
-namespace Imgbed.Core.Encoders;
+namespace Imgbed.Core;
 
 public class EncoderContext
 {
