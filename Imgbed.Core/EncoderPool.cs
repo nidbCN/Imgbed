@@ -33,6 +33,14 @@ public sealed class EncoderPool : IDisposable
 
     #region 字段
     private readonly ConcurrentDictionary<Type, ConcurrentBag<IEncoder>> _freeEncodersPool = new();
+
+
+    /* Use ConcurrentDictionary instead of HashSet because:
+     * > Closing since the benefits over using the ConcurrentDictionary<T, byte> workaround
+     * > or a third-party package don't seem to outweigh the cost of authoring a new collection type.
+     * > We might revisit in the future if more evidence comes up.
+     * https://github.com/dotnet/runtime/issues/39919#issuecomment-954774092
+     */
     private readonly ConcurrentDictionary<Type, ConcurrentDictionary<IEncoder, byte>> _inUseEncodersPool = new();
     private readonly ConcurrentDictionary<Type, SemaphoreSlim> _semaphores = new();
 
@@ -62,6 +70,7 @@ public sealed class EncoderPool : IDisposable
         {
             _freeEncodersPool.TryAdd(type, []);
             _inUseEncodersPool.TryAdd(type, []);
+
             _semaphores.TryAdd(type, new(0, (int)MaxPerEncoderCount));
         }
 
@@ -129,24 +138,21 @@ public sealed class EncoderPool : IDisposable
 
     public void Dispose()
     {
-        foreach (var type in _freeEncodersPool.Keys)
+        // _semaphores.Keys, _freeEncodersPool.Keys and _inUseEncodersPool.Keys is equal here
+        foreach (var encoderType in _semaphores.Keys)
         {
-            var inUseEncoder = _inUseEncodersPool[type];
-            var freeEncoder = _freeEncodersPool[type];
-            var semaphore = _semaphores[type];
+            var semaphore = _semaphores[encoderType];
 
             // 锁住全部编码器的信号数
-            var semaphoreCount = inUseEncoder.Count + freeEncoder.Count;
-
-            semaphore.Wait(semaphoreCount);
+            semaphore.Wait((int)MaxPerEncoderCount);
 
             // 有信号时说明编码器已经全部退还
-            foreach (var encoder in _freeEncodersPool[type])
+            foreach (var encoder in _freeEncodersPool[encoderType])
             {
                 encoder.Dispose();
             }
 
-            semaphore.Release(semaphoreCount);
+            semaphore.Release((int)MaxPerEncoderCount);
         }
     }
     #endregion
