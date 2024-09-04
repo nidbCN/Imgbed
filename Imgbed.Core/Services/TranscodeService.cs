@@ -18,20 +18,23 @@ public class TranscodeService(EncoderPool encoderPool)
             // frame -> filter -> frame
         }
 
-        var encoderList = new[]
+        var encodeArgList = new[]
         {
-            ( 3840 , 2560, "_l"),
-            ( 1920, 1280, "_m"),
-            ( 1080, 720, "_s")
+            ( -1, 2880, "_l"),
+            ( -1, 1440, "_m"),
+            ( -1, 720, "_s")
         };
 
-        return Parallel.ForEachAsync(encoderList, async (args, cancellationToken) =>
+        return Parallel.ForEachAsync(encodeArgList, async (args, cancellationToken) =>
             {
                 var encoder = await encoderPool.GetAsync<T>(cancellationToken);
                 var (width, height, size) = args;
 
                 unsafe
                 {
+                    if (_frame->width < _frame->height)
+                        (width, height) = (height, width);
+
                     encoder.EncodeAndSaveUnsafe(_frame, width, height, $"xxx{size}.webp");
                 }
 
